@@ -5,6 +5,7 @@ import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import com.danilo.backend.mlsys.exceptions.ProductNotFoundException;
 import com.danilo.backend.mlsys.models.Product;
 import com.danilo.backend.mlsys.repositories.ProductRepository;
 
@@ -19,7 +20,7 @@ public class ProductService {
     }
 
     public Product getProductById(Long id) {
-        return productRepository.findById(id).orElseThrow(() -> new RuntimeException("Product not found"));
+        return productRepository.findById(id).orElseThrow(() -> new ProductNotFoundException("Product not found"));
     }
 
     public Product createProduct(Product product) {
@@ -41,7 +42,7 @@ public class ProductService {
 
     private void ensureProductExists(Long id) {
         if (!productRepository.existsById(id)) {
-            throw new RuntimeException("Error: product not found with id " + id);
+            throw new ProductNotFoundException("Error: product not found with id " + id);
         }
     }
 
