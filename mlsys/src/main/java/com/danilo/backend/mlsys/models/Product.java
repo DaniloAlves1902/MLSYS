@@ -3,6 +3,8 @@ package com.danilo.backend.mlsys.models;
 import com.danilo.backend.mlsys.models.enums.Voltage;
 
 import jakarta.persistence.Entity;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.EnumType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -13,6 +15,8 @@ import lombok.Setter;
 import lombok.AllArgsConstructor;
 import lombok.ToString;
 
+
+
 @Entity
 @Table(name = "products")
 @Getter
@@ -21,7 +25,7 @@ import lombok.ToString;
 @AllArgsConstructor
 @ToString
 public class Product {
-    
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -29,10 +33,17 @@ public class Product {
     private String sku;
     private String name;
     private String description;
+    private Integer quantity;
     private String color;
+
     private Voltage voltage;
     private Double cost;
     private Double grossSalePrice;
     private Double estimatedGrossProfit;
-    
+
+    private Boolean premiumRate;
+    private Boolean classicRate;
+
+    private Double freight;
+
 }
