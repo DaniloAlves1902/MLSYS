@@ -40,6 +40,7 @@ public class Product {
     private Double cost;
     private Double grossSalePrice;
     private Double estimatedGrossProfit;
+    private Double estimatedCollectProfit;
 
     private Boolean premiumRate;
     private Boolean classicRate;

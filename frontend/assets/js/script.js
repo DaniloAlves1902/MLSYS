@@ -1,358 +1,564 @@
- // API URL
- const API_BASE_URL = 'http://localhost:8080/api/products';
+// API URL
+const API_BASE_URL = 'http://localhost:8080/api/products';
 
- // DOM Elements
- const productsTableBody = document.getElementById('productsTableBody');
- const productModal = document.getElementById('productModal');
- const deleteModal = document.getElementById('deleteModal');
- const productForm = document.getElementById('productForm');
- const modalTitle = document.getElementById('modalTitle');
- const searchInput = document.getElementById('searchInput');
- const addProductBtn = document.getElementById('addProductBtn');
- const cancelBtn = document.getElementById('cancelBtn');
- const alertBox = document.getElementById('alert');
- const loading = document.getElementById('loading');
- const pagination = document.getElementById('pagination');
+// DOM Elements
+const productsTableBody = document.getElementById('productsTableBody');
+const productModal = document.getElementById('productModal');
+const deleteModal = document.getElementById('deleteModal');
+const productForm = document.getElementById('productForm');
+const modalTitle = document.getElementById('modalTitle');
+const searchInput = document.getElementById('searchInput');
+const addProductBtn = document.getElementById('addProductBtn');
+const cancelBtn = document.getElementById('cancelBtn');
+const alertBox = document.getElementById('alert');
+const loading = document.getElementById('loading');
+const pagination = document.getElementById('pagination');
+const increaseQuantityBtn = document.getElementById('increaseQuantity');
+const decreaseQuantityBtn = document.getElementById('decreaseQuantity');
+const quantityInput = document.getElementById('quantity');
 
- // Product ID for delete operation
- let productToDeleteId = null;
+// Product ID for delete operation
+let productToDeleteId = null;
 
- // Current products data
- let allProducts = [];
- let filteredProducts = [];
+// Current products data
+let allProducts = [];
+let filteredProducts = [];
 
- // Pagination variables
- const itemsPerPage = 10;
- let currentPage = 1;
+// Pagination variables
+const itemsPerPage = 10;
+let currentPage = 1;
 
- // Event Listeners
- document.addEventListener('DOMContentLoaded', fetchProducts);
- addProductBtn.addEventListener('click', openAddProductModal);
- searchInput.addEventListener('input', handleSearch);
- productForm.addEventListener('submit', handleFormSubmit);
- cancelBtn.addEventListener('click', closeModal);
- document.getElementById('cancelDeleteBtn').addEventListener('click', closeDeleteModal);
- document.getElementById('confirmDeleteBtn').addEventListener('click', confirmDelete);
+// Previous quantity value for tracking changes
+let previousQuantity = 0;
 
- // Close buttons for modals
- document.querySelectorAll('.close').forEach(closeBtn => {
-     closeBtn.addEventListener('click', function () {
-         productModal.style.display = 'none';
-         deleteModal.style.display = 'none';
-     });
- });
+// Event Listeners
+document.addEventListener('DOMContentLoaded', fetchProducts);
+addProductBtn.addEventListener('click', openAddProductModal);
+searchInput.addEventListener('input', handleSearch);
+productForm.addEventListener('submit', handleFormSubmit);
+cancelBtn.addEventListener('click', closeModal);
+document.getElementById('cancelDeleteBtn').addEventListener('click', closeDeleteModal);
+document.getElementById('confirmDeleteBtn').addEventListener('click', confirmDelete);
 
- // Auto calculate estimated gross profit
- document.getElementById('grossSalePrice').addEventListener('input', calculateProfit);
- document.getElementById('cost').addEventListener('input', calculateProfit);
+// Quantity control buttons
+increaseQuantityBtn.addEventListener('click', increaseQuantity);
+decreaseQuantityBtn.addEventListener('click', decreaseQuantity);
+quantityInput.addEventListener('change', handleQuantityChange);
 
- // Fetch all products from API
- async function fetchProducts() {
-     showLoading();
-     try {
-         const response = await fetch(API_BASE_URL);
-         if (!response.ok) {
-             throw new Error(`HTTP error! Status: ${response.status}`);
-         }
-         allProducts = await response.json();
-         filteredProducts = [...allProducts];
-         updatePagination();
-         renderProducts();
-         hideLoading();
-     } catch (error) {
-         showAlert(`Error fetching products: ${error.message}`, 'error');
-         hideLoading();
-     }
- }
+// Close buttons for modals
+document.querySelectorAll('.close').forEach(closeBtn => {
+    closeBtn.addEventListener('click', function () {
+        productModal.style.display = 'none';
+        deleteModal.style.display = 'none';
+    });
+});
 
- // Render products in table
- function renderProducts() {
-     productsTableBody.innerHTML = '';
+// Auto calculate estimated gross profit
+document.getElementById('grossSalePrice').addEventListener('input', calculateProfit);
+document.getElementById('cost').addEventListener('input', calculateProfit);
+document.getElementById('premiumRate').addEventListener('change', calculateProfit);
+document.getElementById('classicRate').addEventListener('change', calculateProfit);
 
-     const startIndex = (currentPage - 1) * itemsPerPage;
-     const endIndex = startIndex + itemsPerPage;
-     const productsToDisplay = filteredProducts.slice(startIndex, endIndex);
+// Fetch all products from API
+async function fetchProducts() {
+    showLoading();
+    try {
+        const response = await fetch(API_BASE_URL);
+        if (!response.ok) {
+            throw new Error(`HTTP error! Status: ${response.status}`);
+        }
+        allProducts = await response.json();
+        filteredProducts = [...allProducts];
+        updatePagination();
+        renderProducts();
+        hideLoading();
+    } catch (error) {
+        showAlert(`Error fetching products: ${error.message}`, 'error');
+        hideLoading();
+    }
+}
 
-     if (productsToDisplay.length === 0) {
-         productsTableBody.innerHTML = `
-             <tr>
-                 <td colspan="9" style="text-align: center;">No products found</td>
-             </tr>
-         `;
-         return;
-     }
+// Render products in table
+function renderProducts() {
+    productsTableBody.innerHTML = '';
 
-     productsToDisplay.forEach(product => {
-         // Calculate profit for display
-         const profit = product.estimatedGrossProfit !== null ? product.estimatedGrossProfit :
-             (product.grossSalePrice !== null && product.cost !== null ?
-                 product.grossSalePrice - product.cost : 0);
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    const productsToDisplay = filteredProducts.slice(startIndex, endIndex);
 
-         // Determine profit display class
-         const profitClass = profit > 0 ? 'profit-positive' : (profit < 0 ? 'profit-negative' : '');
+    if (productsToDisplay.length === 0) {
+        productsTableBody.innerHTML = `
+            <tr>
+                <td colspan="10" style="text-align: center;">No products found</td>
+            </tr>
+        `;
+        return;
+    }
 
-         const row = document.createElement('tr');
-         row.innerHTML = `
-             <td>${product.sku || '-'}</td>
-             <td>${product.name || '-'}</td>
-             <td>${product.quantity !== null ? product.quantity : '-'}</td>
-             <td>${product.color || '-'}</td>
-             <td>${formatVoltage(product.voltage) || '-'}</td>
-             <td>$${product.cost !== null ? product.cost.toFixed(2) : '-'}</td>
-             <td>$${product.grossSalePrice !== null ? product.grossSalePrice.toFixed(2) : '-'}</td>
-             <td class="${profitClass}">$${profit.toFixed(2)}</td>
-             <td class="action-buttons">
-                 <button class="btn btn-warning btn-sm edit-btn" data-id="${product.id}">Edit</button>
-                 <button class="btn btn-danger btn-sm delete-btn" data-id="${product.id}">Delete</button>
-             </td>
-         `;
-         productsTableBody.appendChild(row);
-     });
+    productsToDisplay.forEach(product => {
+        // Calculate profit for display
+        const profit = product.estimatedGrossProfit !== null ? product.estimatedGrossProfit :
+            (product.grossSalePrice !== null && product.cost !== null ?
+                product.grossSalePrice - product.cost : 0);
 
-     // Add event listeners to action buttons
-     document.querySelectorAll('.edit-btn').forEach(btn => {
-         btn.addEventListener('click', () => openEditProductModal(btn.dataset.id));
-     });
+        // Determine profit display class
+        const profitClass = profit > 0 ? 'profit-positive' : (profit < 0 ? 'profit-negative' : '');
+        
+        // Get soldProfit value (default to 0 if not set)
+        const soldProfit = product.soldProfit !== null && product.soldProfit !== undefined ? product.soldProfit : 0;
 
-     document.querySelectorAll('.delete-btn').forEach(btn => {
-         btn.addEventListener('click', () => openDeleteModal(btn.dataset.id));
-     });
- }
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>${product.sku || '-'}</td>
+            <td>${product.name || '-'}</td>
+            <td class="quantity-cell">
+                <button class="btn btn-sm quantity-btn decrease-btn" data-id="${product.id}">-</button>
+                <span>${product.quantity !== null ? product.quantity : '0'}</span>
+                <button class="btn btn-sm quantity-btn increase-btn" data-id="${product.id}">+</button>
+            </td>
+            <td>${product.color || '-'}</td>
+            <td>${formatVoltage(product.voltage) || '-'}</td>
+            <td>R$${product.cost !== null ? product.cost.toFixed(2) : '-'}</td>
+            <td>R$${product.grossSalePrice !== null ? product.grossSalePrice.toFixed(2) : '-'}</td>
+            <td class="${profitClass}">R$${profit.toFixed(2)}</td>
+            <td>R$${soldProfit.toFixed(2)}</td>
+            <td class="action-buttons">
+                <button class="btn btn-warning btn-sm edit-btn" data-id="${product.id}">Edit</button>
+                <button class="btn btn-danger btn-sm delete-btn" data-id="${product.id}">Delete</button>
+            </td>
+        `;
+        productsTableBody.appendChild(row);
+    });
 
- // Format voltage for display
- function formatVoltage(voltage) {
-     if (!voltage) return '-';
+    // Add event listeners to action buttons
+    document.querySelectorAll('.edit-btn').forEach(btn => {
+        btn.addEventListener('click', () => openEditProductModal(btn.dataset.id));
+    });
 
-     switch (voltage) {
-         case 'V110': return '110V';
-         case 'V220': return '220V';
-         case 'BIVOLTAL': return 'Bivolt';
-         case 'DOES_NOT_APPLY': return 'Does not apply';
-         default: return voltage;
-     }
- }
+    document.querySelectorAll('.delete-btn').forEach(btn => {
+        btn.addEventListener('click', () => openDeleteModal(btn.dataset.id));
+    });
 
- // Handle search functionality
- function handleSearch() {
-     const searchTerm = searchInput.value.toLowerCase().trim();
+    // Add event listeners to quantity buttons in table
+    document.querySelectorAll('.increase-btn').forEach(btn => {
+        btn.addEventListener('click', () => updateProductQuantity(btn.dataset.id, 1));
+    });
 
-     if (searchTerm === '') {
-         filteredProducts = [...allProducts];
-     } else {
-         filteredProducts = allProducts.filter(product =>
-             (product.sku && product.sku.toLowerCase().includes(searchTerm)) ||
-             (product.name && product.name.toLowerCase().includes(searchTerm)) ||
-             (product.description && product.description.toLowerCase().includes(searchTerm)) ||
-             (product.color && product.color.toLowerCase().includes(searchTerm))
-         );
-     }
+    document.querySelectorAll('.decrease-btn').forEach(btn => {
+        btn.addEventListener('click', () => updateProductQuantity(btn.dataset.id, -1));
+    });
+}
 
-     currentPage = 1; // Reset to first page when searching
-     updatePagination();
-     renderProducts();
- }
+// Calculate profit per item using the same logic as the backend Java code
+function calculateProfitPerItem(product) {
+    const originalPrice = product.grossSalePrice || 0;
+    const fixedFee = originalPrice * 0.03; // 3%
+    const premiumFee = product.premiumRate ? originalPrice * 0.19 : 0.0;
+    const classicFee = product.classicRate ? originalPrice * 0.14 : 0.0;
+    const tax = originalPrice * 0.05; // 5%
+    const freight = originalPrice > 78.99 ? 44.0 : 0.0;
+    
+    const totalDiscounts = fixedFee + premiumFee + classicFee + tax + freight + (product.cost || 0);
+    
+    // Calculate profit per item
+    const profitPerItem = originalPrice - totalDiscounts;
+    
+    // Round to two decimal places
+    return Math.round(profitPerItem * 100) / 100;
+}
 
- // Update pagination controls
- function updatePagination() {
-     const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
-     pagination.innerHTML = '';
+// Update product quantity from the table
+async function updateProductQuantity(productId, change) {
+    const product = allProducts.find(p => p.id == productId);
+    if (!product) return;
 
-     if (totalPages <= 1) return;
+    // Prevent negative quantity
+    if (product.quantity + change < 0) {
+        showAlert("Quantity cannot be negative", "error");
+        return;
+    }
 
-     // Previous button
-     const prevBtn = document.createElement('button');
-     prevBtn.textContent = '«';
-     prevBtn.disabled = currentPage === 1;
-     prevBtn.addEventListener('click', () => {
-         if (currentPage > 1) {
-             currentPage--;
-             updatePagination();
-             renderProducts();
-         }
-     });
-     pagination.appendChild(prevBtn);
+    const newQuantity = product.quantity + change;
+    
+    // Calculate soldProfit when decreasing quantity (a sale happened)
+    let newSoldProfit = product.soldProfit || 0;
+    if (change < 0) {
+        // When decreasing quantity (selling), calculate profit per item and add to soldProfit
+        const profitPerItem = calculateProfitPerItem(product);
+        newSoldProfit += profitPerItem * Math.abs(change);
+    }
 
-     // Page buttons
-     for (let i = 1; i <= totalPages; i++) {
-         const pageBtn = document.createElement('button');
-         pageBtn.textContent = i;
-         pageBtn.classList.toggle('active', i === currentPage);
-         pageBtn.addEventListener('click', () => {
-             currentPage = i;
-             updatePagination();
-             renderProducts();
-         });
-         pagination.appendChild(pageBtn);
-     }
+    const updatedProduct = {
+        ...product,
+        quantity: newQuantity,
+        soldProfit: newSoldProfit
+    };
+    
+    // Update freight based on the new calculation
+    updatedProduct.freight = updatedProduct.grossSalePrice > 78.99 ? 44.0 : 0.0;
+    
+    // Recalculate estimated gross profit with the new quantity
+    const profitPerItem = calculateProfitPerItem(updatedProduct);
+    updatedProduct.estimatedGrossProfit = profitPerItem * newQuantity;
 
-     // Next button
-     const nextBtn = document.createElement('button');
-     nextBtn.textContent = '»';
-     nextBtn.disabled = currentPage === totalPages;
-     nextBtn.addEventListener('click', () => {
-         if (currentPage < totalPages) {
-             currentPage++;
-             updatePagination();
-             renderProducts();
-         }
-     });
-     pagination.appendChild(nextBtn);
- }
+    showLoading();
+    try {
+        const response = await fetch(`${API_BASE_URL}/${productId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(updatedProduct)
+        });
 
- // Open modal to add new product
- function openAddProductModal() {
-     modalTitle.textContent = 'Add New Product';
-     productForm.reset();
-     document.getElementById('productId').value = '';
-     productModal.style.display = 'flex';
- }
+        if (!response.ok) {
+            throw new Error(`HTTP error! Status: ${response.status}`);
+        }
 
- // Open modal to edit existing product
- function openEditProductModal(productId) {
-     const product = allProducts.find(p => p.id == productId);
-     if (!product) return;
+        // Update local data
+        const updatedProductIndex = allProducts.findIndex(p => p.id == productId);
+        allProducts[updatedProductIndex] = updatedProduct;
+        
+        const filteredIndex = filteredProducts.findIndex(p => p.id == productId);
+        if (filteredIndex !== -1) {
+            filteredProducts[filteredIndex] = updatedProduct;
+        }
 
-     modalTitle.textContent = 'Edit Product';
+        renderProducts();
+        hideLoading();
+        showAlert(`Quantity ${change > 0 ? 'increased' : 'decreased'} successfully!`, 'success');
+    } catch (error) {
+        showAlert(`Error updating quantity: ${error.message}`, 'error');
+        hideLoading();
+    }
+}
 
-     // Fill form with product data
-     document.getElementById('productId').value = product.id;
-     document.getElementById('sku').value = product.sku || '';
-     document.getElementById('name').value = product.name || '';
-     document.getElementById('description').value = product.description || '';
-     document.getElementById('quantity').value = product.quantity !== null ? product.quantity : '';
-     document.getElementById('color').value = product.color || '';
-     document.getElementById('voltage').value = product.voltage || 'V110';
-     document.getElementById('cost').value = product.cost !== null ? product.cost : '';
-     document.getElementById('grossSalePrice').value = product.grossSalePrice !== null ? product.grossSalePrice : '';
-     document.getElementById('estimatedGrossProfit').value = product.estimatedGrossProfit !== null ? product.estimatedGrossProfit : '';
-     document.getElementById('freight').value = product.freight !== null ? product.freight : '';
-     document.getElementById('premiumRate').checked = !!product.premiumRate;
-     document.getElementById('classicRate').checked = !!product.classicRate;
+// Increase quantity in modal
+function increaseQuantity() {
+    const currentValue = parseInt(quantityInput.value) || 0;
+    quantityInput.value = currentValue + 1;
+    handleQuantityChange();
+}
 
-     productModal.style.display = 'flex';
- }
+// Decrease quantity in modal
+function decreaseQuantity() {
+    const currentValue = parseInt(quantityInput.value) || 0;
+    if (currentValue > 0) {
+        quantityInput.value = currentValue - 1;
+        handleQuantityChange();
+    }
+}
 
- // Open delete confirmation modal
- function openDeleteModal(productId) {
-     productToDeleteId = productId;
-     deleteModal.style.display = 'flex';
- }
+// Handle quantity change in the form
+function handleQuantityChange() {
+    const productId = document.getElementById('productId').value;
+    if (!productId) {
+        previousQuantity = parseInt(quantityInput.value) || 0;
+        return; // New product, no need to update soldProfit
+    }
 
- // Handle form submission for create/update
- async function handleFormSubmit(event) {
-     event.preventDefault();
+    const currentQuantity = parseInt(quantityInput.value) || 0;
+    const quantityChange = previousQuantity - currentQuantity;
 
-     const productId = document.getElementById('productId').value;
-     const isEdit = !!productId;
+    // If quantity decreased (sold items), update soldProfit
+    if (quantityChange > 0) {
+        const product = allProducts.find(p => p.id == productId);
+        if (product) {
+            const profitPerItem = calculateProfitPerItem(product);
+            
+            // Get current soldProfit
+            const soldProfitInput = document.getElementById('soldProfit');
+            const currentSoldProfit = parseFloat(soldProfitInput.value) || 0;
+            
+            // Add profit from sold items
+            soldProfitInput.value = (currentSoldProfit + (profitPerItem * quantityChange)).toFixed(2);
+        }
+    }
 
-     const cost = parseFloat(document.getElementById('cost').value) || 0;
-     const grossSalePrice = parseFloat(document.getElementById('grossSalePrice').value) || 0;
-     const estimatedGrossProfit = parseFloat(document.getElementById('estimatedGrossProfit').value) || (grossSalePrice - cost);
+    // Update previous quantity
+    previousQuantity = currentQuantity;
+    
+    // Recalculate estimated gross profit
+    calculateProfit();
+}
 
-     const productData = {
-         id: isEdit ? parseInt(productId) : null,
-         sku: document.getElementById('sku').value,
-         name: document.getElementById('name').value,
-         description: document.getElementById('description').value,
-         quantity: parseInt(document.getElementById('quantity').value) || 0,
-         color: document.getElementById('color').value,
-         voltage: document.getElementById('voltage').value,
-         cost: cost,
-         grossSalePrice: grossSalePrice,
-         estimatedGrossProfit: estimatedGrossProfit,
-         freight: parseFloat(document.getElementById('freight').value) || 0,
-         premiumRate: document.getElementById('premiumRate').checked,
-         classicRate: document.getElementById('classicRate').checked
-     };
+// Format voltage for display
+function formatVoltage(voltage) {
+    if (!voltage) return '-';
 
-     showLoading();
-     try {
-         const url = isEdit ? `${API_BASE_URL}/${productId}` : API_BASE_URL;
-         const method = isEdit ? 'PUT' : 'POST';
+    switch (voltage) {
+        case 'V110': return '110V';
+        case 'V220': return '220V';
+        case 'BIVOLTAL': return 'Bivolt';
+        case 'DOES_NOT_APPLY': return 'Não se Aplica';
+        default: return voltage;
+    }
+}
 
-         const response = await fetch(url, {
-             method: method,
-             headers: {
-                 'Content-Type': 'application/json'
-             },
-             body: JSON.stringify(productData)
-         });
+// Handle search functionality
+function handleSearch() {
+    const searchTerm = searchInput.value.toLowerCase().trim();
 
-         if (!response.ok) {
-             throw new Error(`HTTP error! Status: ${response.status}`);
-         }
+    if (searchTerm === '') {
+        filteredProducts = [...allProducts];
+    } else {
+        filteredProducts = allProducts.filter(product =>
+            (product.sku && product.sku.toLowerCase().includes(searchTerm)) ||
+            (product.name && product.name.toLowerCase().includes(searchTerm)) ||
+            (product.description && product.description.toLowerCase().includes(searchTerm)) ||
+            (product.color && product.color.toLowerCase().includes(searchTerm))
+        );
+    }
 
-         closeModal();
-         fetchProducts();
-         showAlert(`Product ${isEdit ? 'updated' : 'created'} successfully!`, 'success');
-     } catch (error) {
-         showAlert(`Error ${isEdit ? 'updating' : 'creating'} product: ${error.message}`, 'error');
-         hideLoading();
-     }
- }
+    currentPage = 1; // Reset to first page when searching
+    updatePagination();
+    renderProducts();
+}
 
- // Confirm and execute product deletion
- async function confirmDelete() {
-     if (!productToDeleteId) return;
+// Update pagination controls
+function updatePagination() {
+    const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
+    pagination.innerHTML = '';
 
-     showLoading();
-     try {
-         const response = await fetch(`${API_BASE_URL}/${productToDeleteId}`, {
-             method: 'DELETE'
-         });
+    if (totalPages <= 1) return;
 
-         if (!response.ok) {
-             throw new Error(`HTTP error! Status: ${response.status}`);
-         }
+    // Previous button
+    const prevBtn = document.createElement('button');
+    prevBtn.textContent = '«';
+    prevBtn.disabled = currentPage === 1;
+    prevBtn.addEventListener('click', () => {
+        if (currentPage > 1) {
+            currentPage--;
+            updatePagination();
+            renderProducts();
+        }
+    });
+    pagination.appendChild(prevBtn);
 
-         closeDeleteModal();
-         fetchProducts();
-         showAlert('Product deleted successfully!', 'success');
-     } catch (error) {
-         showAlert(`Error deleting product: ${error.message}`, 'error');
-         hideLoading();
-     }
- }
+    // Page buttons
+    for (let i = 1; i <= totalPages; i++) {
+        const pageBtn = document.createElement('button');
+        pageBtn.textContent = i;
+        pageBtn.classList.toggle('active', i === currentPage);
+        pageBtn.addEventListener('click', () => {
+            currentPage = i;
+            updatePagination();
+            renderProducts();
+        });
+        pagination.appendChild(pageBtn);
+    }
 
- // Calculate estimated gross profit automatically
- function calculateProfit() {
-     const cost = parseFloat(document.getElementById('cost').value) || 0;
-     const salePrice = parseFloat(document.getElementById('grossSalePrice').value) || 0;
+    // Next button
+    const nextBtn = document.createElement('button');
+    nextBtn.textContent = '»';
+    nextBtn.disabled = currentPage === totalPages;
+    nextBtn.addEventListener('click', () => {
+        if (currentPage < totalPages) {
+            currentPage++;
+            updatePagination();
+            renderProducts();
+        }
+    });
+    pagination.appendChild(nextBtn);
+}
 
-     if (cost > 0 && salePrice > 0) {
-         const profit = salePrice - cost;
-         document.getElementById('estimatedGrossProfit').value = profit.toFixed(2);
-     }
- }
+// Open modal to add new product
+function openAddProductModal() {
+    modalTitle.textContent = 'Add New Product';
+    productForm.reset();
+    document.getElementById('productId').value = '';
+    previousQuantity = 0;
+    document.getElementById('soldProfit').value = '0.00';
+    productModal.style.display = 'flex';
+}
 
- // Close the product modal
- function closeModal() {
-     productModal.style.display = 'none';
- }
+// Open modal to edit existing product
+function openEditProductModal(productId) {
+    const product = allProducts.find(p => p.id == productId);
+    if (!product) return;
 
- // Close the delete confirmation modal
- function closeDeleteModal() {
-     deleteModal.style.display = 'none';
-     productToDeleteId = null;
- }
+    modalTitle.textContent = 'Edit Product';
 
- // Show loading spinner
- function showLoading() {
-     loading.style.display = 'flex';
- }
+    // Fill form with product data
+    document.getElementById('productId').value = product.id;
+    document.getElementById('sku').value = product.sku || '';
+    document.getElementById('name').value = product.name || '';
+    document.getElementById('description').value = product.description || '';
+    document.getElementById('quantity').value = product.quantity !== null ? product.quantity : '';
+    document.getElementById('color').value = product.color || '';
+    document.getElementById('voltage').value = product.voltage || 'V110';
+    document.getElementById('cost').value = product.cost !== null ? product.cost : '';
+    document.getElementById('grossSalePrice').value = product.grossSalePrice !== null ? product.grossSalePrice : '';
+    document.getElementById('estimatedGrossProfit').value = product.estimatedGrossProfit !== null ? product.estimatedGrossProfit : '';
+    document.getElementById('soldProfit').value = product.soldProfit !== null ? product.soldProfit : '0';
+    document.getElementById('freight').value = product.freight !== null ? product.freight : '';
+    document.getElementById('premiumRate').checked = !!product.premiumRate;
+    document.getElementById('classicRate').checked = !!product.classicRate;
 
- // Hide loading spinner
- function hideLoading() {
-     loading.style.display = 'none';
- }
+    // Set previous quantity for tracking changes
+    previousQuantity = product.quantity !== null ? product.quantity : 0;
 
- // Show alert message
- function showAlert(message, type) {
-     alertBox.textContent = message;
-     alertBox.className = `alert alert-${type}`;
-     alertBox.style.display = 'block';
+    productModal.style.display = 'flex';
+}
 
-     setTimeout(() => {
-         alertBox.style.display = 'none';
-     }, 5000);
- }
+// Open delete confirmation modal
+function openDeleteModal(productId) {
+    productToDeleteId = productId;
+    deleteModal.style.display = 'flex';
+}
+
+// Handle form submission for create/update
+async function handleFormSubmit(event) {
+    event.preventDefault();
+
+    const productId = document.getElementById('productId').value;
+    const isEdit = !!productId;
+
+    const cost = parseFloat(document.getElementById('cost').value) || 0;
+    const grossSalePrice = parseFloat(document.getElementById('grossSalePrice').value) || 0;
+    const quantity = parseInt(document.getElementById('quantity').value) || 0;
+    const soldProfit = parseFloat(document.getElementById('soldProfit').value) || 0;
+    const premiumRate = document.getElementById('premiumRate').checked;
+    const classicRate = document.getElementById('classicRate').checked;
+    
+    // Create temporary product object to calculate profit using the backend logic
+    const tempProduct = {
+        cost: cost,
+        grossSalePrice: grossSalePrice,
+        premiumRate: premiumRate,
+        classicRate: classicRate
+    };
+    
+    // Calculate profit per item using the same logic as backend
+    const profitPerItem = calculateProfitPerItem(tempProduct);
+    
+    // Calculate estimated gross profit
+    const estimatedGrossProfit = profitPerItem * quantity;
+
+    const productData = {
+        id: isEdit ? parseInt(productId) : null,
+        sku: document.getElementById('sku').value,
+        name: document.getElementById('name').value,
+        description: document.getElementById('description').value,
+        quantity: quantity,
+        color: document.getElementById('color').value,
+        voltage: document.getElementById('voltage').value,
+        cost: cost,
+        grossSalePrice: grossSalePrice,
+        estimatedGrossProfit: estimatedGrossProfit,
+        soldProfit: soldProfit,
+        freight: grossSalePrice > 78.99 ? 44.0 : 0.0,
+        premiumRate: premiumRate,
+        classicRate: classicRate
+    };
+
+    showLoading();
+    try {
+        const url = isEdit ? `${API_BASE_URL}/${productId}` : API_BASE_URL;
+        const method = isEdit ? 'PUT' : 'POST';
+
+        const response = await fetch(url, {
+            method: method,
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(productData)
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! Status: ${response.status}`);
+        }
+
+        closeModal();
+        fetchProducts();
+        showAlert(`Product ${isEdit ? 'updated' : 'created'} successfully!`, 'success');
+    } catch (error) {
+        showAlert(`Error ${isEdit ? 'updating' : 'creating'} product: ${error.message}`, 'error');
+        hideLoading();
+    }
+}
+
+// Confirm and execute product deletion
+async function confirmDelete() {
+    if (!productToDeleteId) return;
+
+    showLoading();
+    try {
+        const response = await fetch(`${API_BASE_URL}/${productToDeleteId}`, {
+            method: 'DELETE'
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! Status: ${response.status}`);
+        }
+
+        closeDeleteModal();
+        fetchProducts();
+        showAlert('Product deleted successfully!', 'success');
+    } catch (error) {
+        showAlert(`Error deleting product: ${error.message}`, 'error');
+        hideLoading();
+    }
+}
+
+// Calculate estimated gross profit automatically
+function calculateProfit() {
+    const cost = parseFloat(document.getElementById('cost').value) || 0;
+    const grossSalePrice = parseFloat(document.getElementById('grossSalePrice').value) || 0;
+    const quantity = parseInt(document.getElementById('quantity').value) || 0;
+    const premiumRate = document.getElementById('premiumRate').checked;
+    const classicRate = document.getElementById('classicRate').checked;
+    
+    // Calculate freight based on sale price
+    const freight = grossSalePrice > 78.99 ? 44.0 : 0.0;
+    document.getElementById('freight').value = freight.toFixed(2);
+    
+    if (grossSalePrice > 0) {
+        // Create temporary product object to use with our calculation function
+        const tempProduct = {
+            cost: cost,
+            grossSalePrice: grossSalePrice,
+            premiumRate: premiumRate,
+            classicRate: classicRate
+        };
+        
+        // Calculate profit per item using the same logic as the backend
+        const profitPerItem = calculateProfitPerItem(tempProduct);
+        
+        // Calculate total profit based on quantity
+        const totalProfit = profitPerItem * quantity;
+        document.getElementById('estimatedGrossProfit').value = totalProfit.toFixed(2);
+    }
+}
+
+// Close the product modal
+function closeModal() {
+    productModal.style.display = 'none';
+}
+
+// Close the delete confirmation modal
+function closeDeleteModal() {
+    deleteModal.style.display = 'none';
+    productToDeleteId = null;
+}
+
+// Show loading spinner
+function showLoading() {
+    loading.style.display = 'flex';
+}
+
+// Hide loading spinner
+function hideLoading() {
+    loading.style.display = 'none';
+}
+
+// Show alert message
+function showAlert(message, type) {
+    alertBox.textContent = message;
+    alertBox.className = `alert alert-${type}`;
+    alertBox.style.display = 'block';
+
+    setTimeout(() => {
+        alertBox.style.display = 'none';
+    }, 5000);
+}
