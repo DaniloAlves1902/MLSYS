@@ -7,7 +7,8 @@
     <title>Product Management System</title>
 
     <link rel="stylesheet" href="/frontend/assets/css/style.css">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.5/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-SgOJa3DmI69IUzQ2PVdRZhwQ+dy64/BUtbMJw1MZ8t5HZApcHrRKUc4W0kG879m7" crossorigin="anonymous">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.5/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-SgOJa3DmI69IUzQ2PVdRZhwQ+dy64/BUtbMJw1MZ8t5HZApcHrRKUc4W0kG879m7" crossorigin="anonymous">
 
 </head>
 
@@ -17,6 +18,28 @@
             <h1>Product Management System</h1>
         </div>
     </header>
+
+    <!-- New Summary Stats Section -->
+    <div class="container mt-3">
+        <div class="row summary-stats">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Lucro Bruto Total do Estoque</h5>
+                        <h2 id="totalStockValue">R$ 0.00</h2>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Total de Produtos Cadastrados</h5>
+                        <h2 id="totalProducts">0</h2>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <div class="container">
         <div id="alert" class="alert"></div>
@@ -29,7 +52,7 @@
         </div>
 
         <div class="table-container">
-            <table id="productsTable" >
+            <table id="productsTable">
                 <thead>
                     <tr>
                         <th>SKU</th>
@@ -86,7 +109,7 @@
                     <div class="form-group">
                         <label for="quantity">Quantidade</label>
                         <div class="quantity-control">
-                            <button type="button" class="btn btn-danger quantity-btn " id="decreaseQuantity" >-</button>
+                            <button type="button" class="btn btn-danger quantity-btn " id="decreaseQuantity">-</button>
                             <input type="number" id="quantity" min="0" required>
                             <button type="button" class="btn btn-sm quantity-btn" id="increaseQuantity">+</button>
                         </div>

@@ -514,3 +514,30 @@
       min-width: 100%;
     }
   }
+
+  .summary-stats {
+    margin-bottom: 20px;
+}
+
+.summary-stats .card {
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    transition: transform 0.3s ease;
+}
+
+.summary-stats .card:hover {
+    transform: translateY(-5px);
+}
+
+.summary-stats .card-title {
+    color: #6c757d;
+    font-size: 1rem;
+    margin-bottom: 10px;
+}
+
+.summary-stats h2 {
+    color: #212529;
+    font-weight: 700;
+    margin-bottom: 0;
+}

@@ -47,25 +47,28 @@ public class ProductService {
     }
 
     private void calculateFees(Product product) {
-        double originalPrice = product.getGrossSalePrice(); // Preço bruto, R$ 250,00
-    
-        double fixedFee = originalPrice * 0.03; // 3%
+        double originalPrice = product.getGrossSalePrice(); 
+
+        double fixedFee = originalPrice * 0.03;
         double premiumFee = product.getPremiumRate() ? originalPrice * 0.19 : 0.0;
         double classicFee = product.getClassicRate() ? originalPrice * 0.14 : 0.0;
-        double tax = originalPrice * 0.05; // 5%
+        double tax = originalPrice * 0.05;
         double freight = originalPrice > 78.99 ? 44.0 : 0.0;
-        
-        // Setar o frete no objeto
+
+        if (originalPrice < 79) {
+            originalPrice -= 6.25;
+        }
+
         product.setFreight(freight);
-    
+
         double totalDiscounts = fixedFee + premiumFee + classicFee + tax + freight + product.getCost();
-    
+
         double estimatedProfit = originalPrice - totalDiscounts;
-    
+
         // Arredonda para duas casas
         estimatedProfit = Math.round(estimatedProfit * 100.0) / 100.0;
-    
+
         product.setEstimatedGrossProfit(estimatedProfit * product.getQuantity());
     }
-    
+
 }

@@ -16,6 +16,8 @@ const pagination = document.getElementById('pagination');
 const increaseQuantityBtn = document.getElementById('increaseQuantity');
 const decreaseQuantityBtn = document.getElementById('decreaseQuantity');
 const quantityInput = document.getElementById('quantity');
+const totalStockValueElement = document.getElementById('totalStockValue');
+const totalProductsElement = document.getElementById('totalProducts');
 
 // Product ID for delete operation
 let productToDeleteId = null;
@@ -59,6 +61,30 @@ document.getElementById('cost').addEventListener('input', calculateProfit);
 document.getElementById('premiumRate').addEventListener('change', calculateProfit);
 document.getElementById('classicRate').addEventListener('change', calculateProfit);
 
+// Function to update dashboard stats
+function updateDashboardStats() {
+    // Calculate total stock value
+    let totalValue = 0;
+    allProducts.forEach(product => {
+        // Only count products with both quantity and cost
+        if (product.quantity !== null && product.cost !== null) {
+            totalValue += product.estimatedGrossProfit;
+        }
+    });
+    
+    // Format total value with thousands separator
+    const formattedValue = totalValue.toLocaleString('pt-BR', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    });
+    
+    // Update total stock value display
+    totalStockValueElement.textContent = `R$ ${formattedValue}`;
+    
+    // Update total products count
+    totalProductsElement.textContent = allProducts.length;
+}
+
 // Fetch all products from API
 async function fetchProducts() {
     showLoading();
@@ -71,6 +97,7 @@ async function fetchProducts() {
         filteredProducts = [...allProducts];
         updatePagination();
         renderProducts();
+        updateDashboardStats(); // Update dashboard stats after fetching products
         hideLoading();
     } catch (error) {
         showAlert(`Error fetching products: ${error.message}`, 'error');
@@ -103,7 +130,7 @@ function renderProducts() {
 
         // Determine profit display class
         const profitClass = profit > 0 ? 'profit-positive' : (profit < 0 ? 'profit-negative' : '');
-        
+
         // Get soldProfit value (default to 0 if not set)
         const soldProfit = product.soldProfit !== null && product.soldProfit !== undefined ? product.soldProfit : 0;
 
@@ -157,12 +184,12 @@ function calculateProfitPerItem(product) {
     const classicFee = product.classicRate ? originalPrice * 0.14 : 0.0;
     const tax = originalPrice * 0.05; // 5%
     const freight = originalPrice > 78.99 ? 44.0 : 0.0;
-    
+
     const totalDiscounts = fixedFee + premiumFee + classicFee + tax + freight + (product.cost || 0);
-    
+
     // Calculate profit per item
     const profitPerItem = originalPrice - totalDiscounts;
-    
+
     // Round to two decimal places
     return Math.round(profitPerItem * 100) / 100;
 }
@@ -179,7 +206,7 @@ async function updateProductQuantity(productId, change) {
     }
 
     const newQuantity = product.quantity + change;
-    
+
     // Calculate soldProfit when decreasing quantity (a sale happened)
     let newSoldProfit = product.soldProfit || 0;
     if (change < 0) {
@@ -193,10 +220,10 @@ async function updateProductQuantity(productId, change) {
         quantity: newQuantity,
         soldProfit: newSoldProfit
     };
-    
+
     // Update freight based on the new calculation
     updatedProduct.freight = updatedProduct.grossSalePrice > 78.99 ? 44.0 : 0.0;
-    
+
     // Recalculate estimated gross profit with the new quantity
     const profitPerItem = calculateProfitPerItem(updatedProduct);
     updatedProduct.estimatedGrossProfit = profitPerItem * newQuantity;
@@ -218,13 +245,14 @@ async function updateProductQuantity(productId, change) {
         // Update local data
         const updatedProductIndex = allProducts.findIndex(p => p.id == productId);
         allProducts[updatedProductIndex] = updatedProduct;
-        
+
         const filteredIndex = filteredProducts.findIndex(p => p.id == productId);
         if (filteredIndex !== -1) {
             filteredProducts[filteredIndex] = updatedProduct;
         }
 
         renderProducts();
+        updateDashboardStats(); // Update dashboard stats after quantity change
         hideLoading();
         showAlert(`Quantity ${change > 0 ? 'increased' : 'decreased'} successfully!`, 'success');
     } catch (error) {
@@ -265,11 +293,11 @@ function handleQuantityChange() {
         const product = allProducts.find(p => p.id == productId);
         if (product) {
             const profitPerItem = calculateProfitPerItem(product);
-            
+
             // Get current soldProfit
             const soldProfitInput = document.getElementById('soldProfit');
             const currentSoldProfit = parseFloat(soldProfitInput.value) || 0;
-            
+
             // Add profit from sold items
             soldProfitInput.value = (currentSoldProfit + (profitPerItem * quantityChange)).toFixed(2);
         }
@@ -277,7 +305,7 @@ function handleQuantityChange() {
 
     // Update previous quantity
     previousQuantity = currentQuantity;
-    
+
     // Recalculate estimated gross profit
     calculateProfit();
 }
@@ -420,7 +448,7 @@ async function handleFormSubmit(event) {
     const soldProfit = parseFloat(document.getElementById('soldProfit').value) || 0;
     const premiumRate = document.getElementById('premiumRate').checked;
     const classicRate = document.getElementById('classicRate').checked;
-    
+
     // Create temporary product object to calculate profit using the backend logic
     const tempProduct = {
         cost: cost,
@@ -428,10 +456,10 @@ async function handleFormSubmit(event) {
         premiumRate: premiumRate,
         classicRate: classicRate
     };
-    
+
     // Calculate profit per item using the same logic as backend
     const profitPerItem = calculateProfitPerItem(tempProduct);
-    
+
     // Calculate estimated gross profit
     const estimatedGrossProfit = profitPerItem * quantity;
 
@@ -508,11 +536,11 @@ function calculateProfit() {
     const quantity = parseInt(document.getElementById('quantity').value) || 0;
     const premiumRate = document.getElementById('premiumRate').checked;
     const classicRate = document.getElementById('classicRate').checked;
-    
+
     // Calculate freight based on sale price
     const freight = grossSalePrice > 78.99 ? 44.0 : 0.0;
     document.getElementById('freight').value = freight.toFixed(2);
-    
+
     if (grossSalePrice > 0) {
         // Create temporary product object to use with our calculation function
         const tempProduct = {
@@ -521,10 +549,10 @@ function calculateProfit() {
             premiumRate: premiumRate,
             classicRate: classicRate
         };
-        
+
         // Calculate profit per item using the same logic as the backend
         const profitPerItem = calculateProfitPerItem(tempProduct);
-        
+
         // Calculate total profit based on quantity
         const totalProfit = profitPerItem * quantity;
         document.getElementById('estimatedGrossProfit').value = totalProfit.toFixed(2);
