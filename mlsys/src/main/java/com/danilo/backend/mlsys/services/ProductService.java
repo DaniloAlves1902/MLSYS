@@ -47,7 +47,7 @@ public class ProductService {
     }
 
     private void calculateFees(Product product) {
-        double originalPrice = product.getGrossSalePrice(); 
+        double originalPrice = product.getGrossSalePrice();
 
         double fixedFee = originalPrice * 0.03;
         double premiumFee = product.getPremiumRate() ? originalPrice * 0.19 : 0.0;
@@ -55,10 +55,17 @@ public class ProductService {
         double tax = originalPrice * 0.05;
         double freight = originalPrice > 78.99 ? 44.0 : 0.0;
 
-        if (originalPrice < 79) {
+        if (originalPrice < 29) {
             originalPrice -= 6.25;
         }
 
+        if (originalPrice >= 29 && originalPrice < 50) {
+            originalPrice -= 6.50;
+        }
+
+        if (originalPrice > 50 && originalPrice < 79) {
+            originalPrice -= 6.75;
+        }
         product.setFreight(freight);
 
         double totalDiscounts = fixedFee + premiumFee + classicFee + tax + freight + product.getCost();

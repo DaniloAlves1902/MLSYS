@@ -3,8 +3,6 @@ package com.danilo.backend.mlsys.models;
 import com.danilo.backend.mlsys.models.enums.Voltage;
 
 import jakarta.persistence.Entity;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.EnumType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -14,6 +12,8 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.AllArgsConstructor;
 import lombok.ToString;
+
+import com.danilo.backend.mlsys.models.enums.Status;
 
 
 
@@ -46,5 +46,6 @@ public class Product {
     private Boolean classicRate;
 
     private Double freight;
+    private Status status;
 
 }

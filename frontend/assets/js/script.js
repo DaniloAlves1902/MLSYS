@@ -61,6 +61,20 @@ document.getElementById('cost').addEventListener('input', calculateProfit);
 document.getElementById('premiumRate').addEventListener('change', calculateProfit);
 document.getElementById('classicRate').addEventListener('change', calculateProfit);
 
+// Function to format status for display
+function formatStatus(status) {
+    if (!status) return '-';
+
+    switch (status) {
+        case 'ACTIVE': return 'Anunciado';
+        case 'INACTIVE': return 'Não Anunciado';
+        case 'PENDING': return 'Pendente';
+        case 'DISCONTINUED': return 'Descontinuado';
+        case 'UNKNOWN': return 'Desconhecido';
+        default: return status;
+    }
+}
+
 // Function to update dashboard stats
 function updateDashboardStats() {
     // Calculate total stock value
@@ -116,7 +130,7 @@ function renderProducts() {
     if (productsToDisplay.length === 0) {
         productsTableBody.innerHTML = `
             <tr>
-                <td colspan="10" style="text-align: center;">No products found</td>
+                <td colspan="11" style="text-align: center;">No products found</td>
             </tr>
         `;
         return;
@@ -134,6 +148,12 @@ function renderProducts() {
         // Get soldProfit value (default to 0 if not set)
         const soldProfit = product.soldProfit !== null && product.soldProfit !== undefined ? product.soldProfit : 0;
 
+        // Get status with default to UNKNOWN if not set
+        const status = product.status || 'UNKNOWN';
+        
+        // Add status class for styling
+        const statusClass = `status-${status.toLowerCase()}`;
+
         const row = document.createElement('tr');
         row.innerHTML = `
             <td>${product.sku || '-'}</td>
@@ -145,6 +165,7 @@ function renderProducts() {
             </td>
             <td>${product.color || '-'}</td>
             <td>${formatVoltage(product.voltage) || '-'}</td>
+            <td class="${statusClass}">${formatStatus(status)}</td>
             <td>R$${product.cost !== null ? product.cost.toFixed(2) : '-'}</td>
             <td>R$${product.grossSalePrice !== null ? product.grossSalePrice.toFixed(2) : '-'}</td>
             <td class="${profitClass}">R$${profit.toFixed(2)}</td>
@@ -334,7 +355,8 @@ function handleSearch() {
             (product.sku && product.sku.toLowerCase().includes(searchTerm)) ||
             (product.name && product.name.toLowerCase().includes(searchTerm)) ||
             (product.description && product.description.toLowerCase().includes(searchTerm)) ||
-            (product.color && product.color.toLowerCase().includes(searchTerm))
+            (product.color && product.color.toLowerCase().includes(searchTerm)) ||
+            (product.status && formatStatus(product.status).toLowerCase().includes(searchTerm))
         );
     }
 
@@ -397,6 +419,7 @@ function openAddProductModal() {
     document.getElementById('productId').value = '';
     previousQuantity = 0;
     document.getElementById('soldProfit').value = '0.00';
+    document.getElementById('status').value = 'ACTIVE'; // Default to ACTIVE for new products
     productModal.style.display = 'flex';
 }
 
@@ -415,6 +438,7 @@ function openEditProductModal(productId) {
     document.getElementById('quantity').value = product.quantity !== null ? product.quantity : '';
     document.getElementById('color').value = product.color || '';
     document.getElementById('voltage').value = product.voltage || 'V110';
+    document.getElementById('status').value = product.status || 'UNKNOWN';
     document.getElementById('cost').value = product.cost !== null ? product.cost : '';
     document.getElementById('grossSalePrice').value = product.grossSalePrice !== null ? product.grossSalePrice : '';
     document.getElementById('estimatedGrossProfit').value = product.estimatedGrossProfit !== null ? product.estimatedGrossProfit : '';
@@ -448,6 +472,7 @@ async function handleFormSubmit(event) {
     const soldProfit = parseFloat(document.getElementById('soldProfit').value) || 0;
     const premiumRate = document.getElementById('premiumRate').checked;
     const classicRate = document.getElementById('classicRate').checked;
+    const status = document.getElementById('status').value;
 
     // Create temporary product object to calculate profit using the backend logic
     const tempProduct = {
@@ -471,6 +496,7 @@ async function handleFormSubmit(event) {
         quantity: quantity,
         color: document.getElementById('color').value,
         voltage: document.getElementById('voltage').value,
+        status: status,
         cost: cost,
         grossSalePrice: grossSalePrice,
         estimatedGrossProfit: estimatedGrossProfit,
@@ -589,4 +615,4 @@ function showAlert(message, type) {
     setTimeout(() => {
         alertBox.style.display = 'none';
     }, 5000);
-}
+}   
