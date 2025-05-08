@@ -23,15 +23,15 @@ public class ProductService {
         return productRepository.findById(id).orElseThrow(() -> new ProductNotFoundException("Product not found"));
     }
 
-    public Product createProduct(Product product) {
-        calculateFees(product);
+    public Product createProduct(Product product, double freight) {
+        calculateFees(product, freight);
         return productRepository.save(product);
     }
 
-    public Product updateProduct(Long id, Product product) {
+    public Product updateProduct(Long id, Product product, double freight) {
         ensureProductExists(id);
         product.setId(id);
-        calculateFees(product);
+        calculateFees(product, freight);
         return productRepository.save(product);
     }
 
@@ -46,36 +46,31 @@ public class ProductService {
         }
     }
 
-    private void calculateFees(Product product) {
+    private void calculateFees(Product product, double freight) {
         double originalPrice = product.getGrossSalePrice();
-
+    
         double fixedFee = originalPrice * 0.03;
         double premiumFee = product.getPremiumRate() ? originalPrice * 0.19 : 0.0;
         double classicFee = product.getClassicRate() ? originalPrice * 0.14 : 0.0;
-        double tax = originalPrice * 0.05;
-        double freight = originalPrice > 78.99 ? 44.0 : 0.0;
-
+        double tax = originalPrice * 0.04;
+    
         if (originalPrice < 29) {
             originalPrice -= 6.25;
-        }
-
-        if (originalPrice >= 29 && originalPrice < 50) {
+        } else if (originalPrice < 50) {
             originalPrice -= 6.50;
-        }
-
-        if (originalPrice > 50 && originalPrice < 79) {
+        } else if (originalPrice < 79) {
             originalPrice -= 6.75;
         }
+    
         product.setFreight(freight);
-
+    
         double totalDiscounts = fixedFee + premiumFee + classicFee + tax + freight + product.getCost();
-
+    
         double estimatedProfit = originalPrice - totalDiscounts;
-
+    
         // Arredonda para duas casas
         estimatedProfit = Math.round(estimatedProfit * 100.0) / 100.0;
-
+    
         product.setEstimatedGrossProfit(estimatedProfit * product.getQuantity());
     }
-
 }

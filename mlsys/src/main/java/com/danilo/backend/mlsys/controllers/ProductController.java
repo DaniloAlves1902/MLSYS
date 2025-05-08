@@ -9,9 +9,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 
 import com.danilo.backend.mlsys.services.ProductService;
-
 import com.danilo.backend.mlsys.models.Product;
 import java.util.List;
 
@@ -33,19 +33,17 @@ public class ProductController {
     }
 
     @PostMapping
-    public Product createProduct(@RequestBody Product product) {
-        return productService.createProduct(product);
+    public Product createProduct(@RequestBody Product product, @RequestParam double freight) {
+        return productService.createProduct(product, freight);
     }
 
     @PutMapping("/{id}")
-    public Product updateProduct(@PathVariable Long id, @RequestBody Product product) {
-        return productService.updateProduct(id, product);
+    public Product updateProduct(@PathVariable Long id, @RequestBody Product product, @RequestParam double freight) {
+        return productService.updateProduct(id, product, freight);
     }
 
     @DeleteMapping("/{id}")
     public void deleteProduct(@PathVariable Long id) {
         productService.deleteProduct(id);
-
     }
-
 }

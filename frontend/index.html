@@ -10,7 +10,52 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.5/dist/css/bootstrap.min.css" rel="stylesheet"
         integrity="sha384-SgOJa3DmI69IUzQ2PVdRZhwQ+dy64/BUtbMJw1MZ8t5HZApcHrRKUc4W0kG879m7" crossorigin="anonymous">
 
-   
+    <style>
+        /* Additional styles for profit indicators */
+        .profit-positive {
+            color: green;
+            font-weight: bold;
+        }
+        .profit-negative {
+            color: red;
+            font-weight: bold;
+        }
+        /* Status styles */
+        .status-active {
+            color: green;
+        }
+        .status-inactive {
+            color: gray;
+        }
+        .status-pending {
+            color: orange;
+        }
+        .status-discontinued {
+            color: red;
+        }
+        .status-unknown {
+            color: #777;
+        }
+        /* Quantity button styles */
+        .quantity-cell {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            max-width: 100px;
+        }
+        .quantity-btn {
+            padding: 0 5px;
+            margin: 0 3px;
+        }
+        .increase-btn {
+            background-color: #28a745;
+            color: white;
+        }
+        .decrease-btn {
+            background-color: #dc3545;
+            color: white;
+        }
+    </style>
 </head>
 
 <body>
@@ -20,7 +65,7 @@
         </div>
     </header>
 
-    <!-- New Summary Stats Section -->
+    <!-- Summary Stats Section -->
     <div class="container mt-3">
         <div class="row summary-stats">
             <div class="col-md-6">
@@ -43,7 +88,7 @@
     </div>
 
     <div class="container">
-        <div id="alert" class="alert"></div>
+        <div id="alert" class="alert" style="display: none;"></div>
 
         <div class="controls">
             <div class="search-container">
@@ -52,8 +97,8 @@
             <button id="addProductBtn" class="btn btn-primary">Add New Product</button>
         </div>
 
-        <div class="table-container">
-            <table id="productsTable">
+        <div class="table-container ">
+            <table id="productsTable" class="table  ">
                 <thead>
                     <tr>
                         <th>SKU</th>
@@ -64,8 +109,10 @@
                         <th>Status</th>
                         <th>Custo</th>
                         <th>Preço de Venda</th>
-                        <th>Lucro Bruto Total do Estoque por Produto</th>
-                        <th>Lucro Bruto de UND Vendidas (ATUAL)</th>
+                        <th>Lucro/Und</th>
+                        <th>Lucro Total</th>
+                        <th>Lucro Vendidos</th>
+                        <th>Frete</th>
                         <th>Ações</th>
                     </tr>
                 </thead>
@@ -81,7 +128,7 @@
     </div>
 
     <!-- Add/Edit Product Modal -->
-    <div id="productModal" class="modal">
+    <div id="productModal" class="modal" style="display: none;">
         <div class="modal-content">
             <div class="modal-header">
                 <h2 id="modalTitle">Add New Product</h2>
@@ -152,18 +199,18 @@
                     </div>
                     <div class="form-group">
                         <label for="freight">Frete</label>
-                        <input type="number" id="freight" step="0.01" min="0">
+                        <input type="number" id="freight" step="0.01" min="0" value="0.00">
                     </div>
                 </div>
 
                 <div class="form-row">
                     <div class="form-group">
-                        <label for="estimatedGrossProfit">Lucro Bruto Estimado de Todo o estoque</label>
-                        <input type="number" id="estimatedGrossProfit" step="0.01" min="0">
+                        <label for="estimatedGrossProfit">Lucro Bruto Estimado</label>
+                        <input type="number" id="estimatedGrossProfit" step="0.01" min="0" readonly>
                     </div>
                     <div class="form-group">
-                        <label for="soldProfit">Lucro de Vendidos até Agora</label>
-                        <input type="number" id="soldProfit" step="0.01" min="0">
+                        <label for="soldProfit">Lucro de Vendidos</label>
+                        <input type="number" id="soldProfit" step="0.01" min="0" value="0.00">
                     </div>
                 </div>
 
@@ -187,7 +234,7 @@
     </div>
 
     <!-- Delete Confirmation Modal -->
-    <div id="deleteModal" class="modal">
+    <div id="deleteModal" class="modal" style="display: none;">
         <div class="modal-content">
             <div class="modal-header">
                 <h2>Confirm Delete</h2>
@@ -204,7 +251,7 @@
     </div>
 
     <!-- Loading Indicator -->
-    <div id="loading" class="loading-overlay">
+    <div id="loading" class="loading-overlay" style="display: none;">
         <div class="spinner"></div>
     </div>
 

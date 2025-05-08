@@ -60,6 +60,7 @@ document.getElementById('grossSalePrice').addEventListener('input', calculatePro
 document.getElementById('cost').addEventListener('input', calculateProfit);
 document.getElementById('premiumRate').addEventListener('change', calculateProfit);
 document.getElementById('classicRate').addEventListener('change', calculateProfit);
+document.getElementById('freight').addEventListener('input', calculateProfit); // Adiciona evento para atualizar quando o frete mudar
 
 // Function to format status for display
 function formatStatus(status) {
@@ -81,7 +82,7 @@ function updateDashboardStats() {
     let totalValue = 0;
     allProducts.forEach(product => {
         // Only count products with both quantity and cost
-        if (product.quantity !== null && product.cost !== null) {
+        if (product.quantity !== null && product.estimatedGrossProfit !== null) {
             totalValue += product.estimatedGrossProfit;
         }
     });
@@ -103,7 +104,8 @@ function updateDashboardStats() {
 async function fetchProducts() {
     showLoading();
     try {
-        const response = await fetch(API_BASE_URL);
+        // Use o valor de frete padrão para GET request
+        const response = await fetch(`${API_BASE_URL}?freight=0`);
         if (!response.ok) {
             throw new Error(`HTTP error! Status: ${response.status}`);
         }
@@ -137,13 +139,15 @@ function renderProducts() {
     }
 
     productsToDisplay.forEach(product => {
-        // Calculate profit for display
-        const profit = product.estimatedGrossProfit !== null ? product.estimatedGrossProfit :
-            (product.grossSalePrice !== null && product.cost !== null ?
-                product.grossSalePrice - product.cost : 0);
+        // Get profit per item (valor unitário)
+        const profitPerItem = product.quantity > 0 && product.estimatedGrossProfit !== null ? 
+            (product.estimatedGrossProfit / product.quantity) : 0;
 
         // Determine profit display class
-        const profitClass = profit > 0 ? 'profit-positive' : (profit < 0 ? 'profit-negative' : '');
+        const profitClass = profitPerItem > 0 ? 'profit-positive' : (profitPerItem < 0 ? 'profit-negative' : '');
+
+        // Get profit for all units (valor total)
+        const totalProfit = product.estimatedGrossProfit !== null ? product.estimatedGrossProfit : 0;
 
         // Get soldProfit value (default to 0 if not set)
         const soldProfit = product.soldProfit !== null && product.soldProfit !== undefined ? product.soldProfit : 0;
@@ -159,7 +163,7 @@ function renderProducts() {
             <td>${product.sku || '-'}</td>
             <td>${product.name || '-'}</td>
             <td class="quantity-cell">
-                <button class="btn btn-sm quantity-btn decrease-btn" data-id="${product.id}">-</button>
+                <button class="btn btn-sm quantity-btn decrease-btn" s data-id="${product.id}">-</button>
                 <span>${product.quantity !== null ? product.quantity : '0'}</span>
                 <button class="btn btn-sm quantity-btn increase-btn" data-id="${product.id}">+</button>
             </td>
@@ -168,8 +172,10 @@ function renderProducts() {
             <td class="${statusClass}">${formatStatus(status)}</td>
             <td>R$${product.cost !== null ? product.cost.toFixed(2) : '-'}</td>
             <td>R$${product.grossSalePrice !== null ? product.grossSalePrice.toFixed(2) : '-'}</td>
-            <td class="${profitClass}">R$${profit.toFixed(2)}</td>
+            <td class="${profitClass}">R$${profitPerItem.toFixed(2)}</td>
+            <td>R$${totalProfit.toFixed(2)}</td>
             <td>R$${soldProfit.toFixed(2)}</td>
+            <td>R$${product.freight !== null ? product.freight.toFixed(2) : '0.00'}</td>
             <td class="action-buttons">
                 <button class="btn btn-warning btn-sm edit-btn" data-id="${product.id}">Edit</button>
                 <button class="btn btn-danger btn-sm delete-btn" data-id="${product.id}">Delete</button>
@@ -200,18 +206,29 @@ function renderProducts() {
 // Calculate profit per item using the same logic as the backend Java code
 function calculateProfitPerItem(product) {
     const originalPrice = product.grossSalePrice || 0;
+    let adjustedPrice = originalPrice;
+    
+    // Apply price adjustments based on the price ranges
+    if (originalPrice < 29) {
+        adjustedPrice -= 6.25;
+    } else if (originalPrice < 50) {
+        adjustedPrice -= 6.50;
+    } else if (originalPrice < 79) {
+        adjustedPrice -= 6.75;
+    }
+    
     const fixedFee = originalPrice * 0.03; // 3%
     const premiumFee = product.premiumRate ? originalPrice * 0.19 : 0.0;
     const classicFee = product.classicRate ? originalPrice * 0.14 : 0.0;
-    const tax = originalPrice * 0.05; // 5%
-    const freight = originalPrice > 78.99 ? 44.0 : 0.0;
-
+    const tax = originalPrice * 0.04; // 4%
+    const freight = parseFloat(product.freight) || 0.0; // Use o frete informado
+    
     const totalDiscounts = fixedFee + premiumFee + classicFee + tax + freight + (product.cost || 0);
-
+    
     // Calculate profit per item
-    const profitPerItem = originalPrice - totalDiscounts;
-
-    // Round to two decimal places
+    const profitPerItem = adjustedPrice - totalDiscounts;
+    
+    // Round to two decimal places as done in Java backend
     return Math.round(profitPerItem * 100) / 100;
 }
 
@@ -236,22 +253,24 @@ async function updateProductQuantity(productId, change) {
         newSoldProfit += profitPerItem * Math.abs(change);
     }
 
+    // Preserve the existing freight value rather than recalculating
+    const freight = product.freight || 0.0;
+
     const updatedProduct = {
         ...product,
         quantity: newQuantity,
-        soldProfit: newSoldProfit
+        soldProfit: newSoldProfit,
+        freight: freight
     };
 
-    // Update freight based on the new calculation
-    updatedProduct.freight = updatedProduct.grossSalePrice > 78.99 ? 44.0 : 0.0;
-
-    // Recalculate estimated gross profit with the new quantity
+    // Recalculate estimated gross profit
     const profitPerItem = calculateProfitPerItem(updatedProduct);
     updatedProduct.estimatedGrossProfit = profitPerItem * newQuantity;
 
     showLoading();
     try {
-        const response = await fetch(`${API_BASE_URL}/${productId}`, {
+        // Pass freight as a query parameter in the URL
+        const response = await fetch(`${API_BASE_URL}/${productId}?freight=${freight}`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json'
@@ -420,6 +439,7 @@ function openAddProductModal() {
     previousQuantity = 0;
     document.getElementById('soldProfit').value = '0.00';
     document.getElementById('status').value = 'ACTIVE'; // Default to ACTIVE for new products
+    document.getElementById('freight').value = '0.00';
     productModal.style.display = 'flex';
 }
 
@@ -443,7 +463,7 @@ function openEditProductModal(productId) {
     document.getElementById('grossSalePrice').value = product.grossSalePrice !== null ? product.grossSalePrice : '';
     document.getElementById('estimatedGrossProfit').value = product.estimatedGrossProfit !== null ? product.estimatedGrossProfit : '';
     document.getElementById('soldProfit').value = product.soldProfit !== null ? product.soldProfit : '0';
-    document.getElementById('freight').value = product.freight !== null ? product.freight : '';
+    document.getElementById('freight').value = product.freight !== null ? product.freight : '0.00';
     document.getElementById('premiumRate').checked = !!product.premiumRate;
     document.getElementById('classicRate').checked = !!product.classicRate;
 
@@ -474,19 +494,8 @@ async function handleFormSubmit(event) {
     const classicRate = document.getElementById('classicRate').checked;
     const status = document.getElementById('status').value;
 
-    // Create temporary product object to calculate profit using the backend logic
-    const tempProduct = {
-        cost: cost,
-        grossSalePrice: grossSalePrice,
-        premiumRate: premiumRate,
-        classicRate: classicRate
-    };
-
-    // Calculate profit per item using the same logic as backend
-    const profitPerItem = calculateProfitPerItem(tempProduct);
-
-    // Calculate estimated gross profit
-    const estimatedGrossProfit = profitPerItem * quantity;
+    // Use o valor do frete informado pelo usuário
+    const freight = parseFloat(document.getElementById('freight').value) || 0.0;
 
     const productData = {
         id: isEdit ? parseInt(productId) : null,
@@ -499,16 +508,19 @@ async function handleFormSubmit(event) {
         status: status,
         cost: cost,
         grossSalePrice: grossSalePrice,
-        estimatedGrossProfit: estimatedGrossProfit,
         soldProfit: soldProfit,
-        freight: grossSalePrice > 78.99 ? 44.0 : 0.0,
+        freight: freight,
         premiumRate: premiumRate,
         classicRate: classicRate
     };
 
+    // Note: We don't need to calculate estimatedGrossProfit here as the backend will do it
+
     showLoading();
     try {
-        const url = isEdit ? `${API_BASE_URL}/${productId}` : API_BASE_URL;
+        // Add freight as a query parameter
+        let url = isEdit ? `${API_BASE_URL}/${productId}` : API_BASE_URL;
+        url += `?freight=${freight}`;
         const method = isEdit ? 'PUT' : 'POST';
 
         const response = await fetch(url, {
@@ -538,7 +550,8 @@ async function confirmDelete() {
 
     showLoading();
     try {
-        const response = await fetch(`${API_BASE_URL}/${productToDeleteId}`, {
+        // Add freight as a query parameter for DELETE request
+        const response = await fetch(`${API_BASE_URL}/${productToDeleteId}?freight=0`, {
             method: 'DELETE'
         });
 
@@ -563,9 +576,8 @@ function calculateProfit() {
     const premiumRate = document.getElementById('premiumRate').checked;
     const classicRate = document.getElementById('classicRate').checked;
 
-    // Calculate freight based on sale price
-    const freight = grossSalePrice > 78.99 ? 44.0 : 0.0;
-    document.getElementById('freight').value = freight.toFixed(2);
+    // Use o valor do frete informado pelo usuário em vez de calculá-lo
+    const freight = parseFloat(document.getElementById('freight').value) || 0.0;
 
     if (grossSalePrice > 0) {
         // Create temporary product object to use with our calculation function
@@ -573,7 +585,8 @@ function calculateProfit() {
             cost: cost,
             grossSalePrice: grossSalePrice,
             premiumRate: premiumRate,
-            classicRate: classicRate
+            classicRate: classicRate,
+            freight: freight
         };
 
         // Calculate profit per item using the same logic as the backend
@@ -615,4 +628,4 @@ function showAlert(message, type) {
     setTimeout(() => {
         alertBox.style.display = 'none';
     }, 5000);
-}   
+}
